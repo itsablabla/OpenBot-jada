@@ -28,6 +28,7 @@
     "agent-ag2": { "provider": "openai", "model": "gpt-4o-mini" },
     "agent-agno": { "provider": "openai", "model": "gpt-5.5" },
     "agent-crewai": { "provider": "openai", "model": "gpt-5.5" },
+    "agent-droid": { "provider": "openai", "model": "gpt-4o-mini" },
     "agent-langgraph-agui": { "provider": "openai", "model": "gpt-4o-mini" },
     "agent-langroid": { "provider": "openai", "model": "gpt-4o-mini" },
     "agent-llamaindex": { "provider": "openai", "model": "gpt-5.5" },
