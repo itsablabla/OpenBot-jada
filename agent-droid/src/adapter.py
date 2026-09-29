@@ -15,8 +15,11 @@ else.
 
 import asyncio
 import json
+import os
+import tempfile
 import uuid
 from dataclasses import dataclass
+from pathlib import Path
 
 from ag_ui.core import (
     RunAgentInput,
@@ -32,9 +35,17 @@ from ag_ui.core import (
     ToolCallStartEvent,
 )
 
+from .sessions import SessionStore
+
 # How much of stderr is kept for the error message when the CLI dies without a
 # `result` event. Enough to say why, bounded so a looping process cannot grow it.
 _STDERR_TAIL_BYTES = 4096
+
+# The MCP server `main.py` registers for the deployment's own tools. Droid
+# namespaces MCP tools by server, so its stream names them through this prefix;
+# the AG-UI events carry the deployment's own names, with the plumbing removed.
+MCP_SERVER_NAME = "openbot"
+_MCP_PREFIX = f"mcp__{MCP_SERVER_NAME}__"
 
 
 @dataclass(frozen=True)
@@ -45,10 +56,15 @@ class DroidSettings:
     # The BYOK custom model's display name, when main.py wrote one, or a model
     # the environment pinned. Empty means Droid's own default.
     model: str = ""
-    # Droid runs its own local tools; "low" keeps it to reads unless the
-    # deployment says otherwise, because this Bot answers chat rather than
-    # editing a repository it owns.
+    # Droid runs its own local tools. `DROID_AUTONOMY` in the deployment's
+    # environment chooses how far they may go; "low" keeps it to reads, because
+    # nothing about a fresh install says its Bot may edit what it can see.
     autonomy: str = "low"
+    # Where Droid works. The deployment mounts its shared workspace here, so
+    # Droid's file tools and an `AGENTS.md` the person keeps there are read
+    # natively. Empty means the process's own directory, which is what a
+    # deployment without the mount had before.
+    workspace: str = ""
 
 
 def _prompt_from(input_data: RunAgentInput) -> str:
@@ -75,10 +91,59 @@ def _texts(content) -> str:
     return ""
 
 
+def _tool_name(name: str) -> str:
+    """The deployment's own name for a tool, with Droid's MCP namespacing removed."""
+    return name[len(_MCP_PREFIX) :] if name.startswith(_MCP_PREFIX) else name
+
+
+def run_context(input_data: RunAgentInput) -> dict | None:
+    """What the MCP bridge needs to call this run's deployment tools, or None.
+
+    The deployment marks which of the run's tools it runs itself
+    (`openbotDeploymentTools`) and signs whose run this is (`openbotRun`), both
+    in `forwardedProps` — the same contract the LangGraph Bot reads. Only those
+    tools are offered to Droid: the rest are drawn by a surface this headless
+    process cannot see, and offering them would produce calls nothing answers.
+    """
+    url = (os.environ.get("OPENBOT_TOOL_URL") or "").strip()
+    token = (os.environ.get("AGENT_TOOL_TOKEN") or "").strip()
+    if not url or not token:
+        return None
+    props = input_data.forwarded_props
+    if not isinstance(props, dict):
+        return None
+    names = props.get("openbotDeploymentTools")
+    ours = {name for name in names if isinstance(name, str)} if isinstance(names, list) else set()
+    run = props.get("openbotRun")
+    tools = [
+        {
+            "name": tool.name,
+            "description": tool.description,
+            "parameters": tool.parameters,
+        }
+        for tool in input_data.tools or []
+        if tool.name in ours
+    ]
+    if not tools:
+        return None
+    return {
+        "url": url,
+        "token": token,
+        "run": run if isinstance(run, str) else "",
+        "tools": tools,
+    }
+
+
 class DroidAdapter:
-    def __init__(self, settings: DroidSettings | None = None):
+    def __init__(
+        self,
+        settings: DroidSettings | None = None,
+        sessions: SessionStore | None = None,
+    ):
         self._settings = settings or DroidSettings()
-        self._sessions: dict[str, str] = {}
+        # Threads outlive runs and, through the store's file, outlive this
+        # process: see `sessions.py`. The in-memory dict is for tests only.
+        self._sessions = sessions if sessions is not None else _EphemeralSessions()
 
     def _argv(self, prompt: str, thread_id: str) -> list[str]:
         settings = self._settings
@@ -92,7 +157,7 @@ class DroidAdapter:
         ]
         if settings.model:
             argv += ["--model", settings.model]
-        session = self._sessions.get(thread_id, "")
+        session = self._sessions.get(thread_id)
         if session:
             argv += ["--session-id", session]
         argv.append(prompt)
@@ -110,12 +175,30 @@ class DroidAdapter:
             return
 
         try:
+            context = run_context(input_data)
+            run_file: Path | None = None
+            environment = dict(os.environ)
+            if context is not None:
+                # Written before the spawn and named in the spawn's own
+                # environment, so the MCP bridge Droid starts (see
+                # `mcp_proxy.py`) serves exactly this run's tools on exactly
+                # this run's signed statement. One file per run: two runs
+                # answered at once must not read each other's grant.
+                handle, name = tempfile.mkstemp(prefix="openbot-run-", suffix=".json")
+                run_file = Path(name)
+                with os.fdopen(handle, "w", encoding="utf-8") as file:
+                    json.dump(context, file)
+                environment["OPENBOT_RUN_FILE"] = str(run_file)
             process = await asyncio.create_subprocess_exec(
                 *self._argv(prompt, thread_id),
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
+                cwd=self._settings.workspace or None,
+                env=environment,
             )
         except OSError as error:
+            if run_file is not None:
+                run_file.unlink(missing_ok=True)
             yield RunErrorEvent(message=f"Droid could not be started: {error}")
             return
 
@@ -138,7 +221,7 @@ class DroidAdapter:
                 if kind == "system" and event.get("subtype") == "init":
                     session = str(event.get("session_id") or "").strip()
                     if session:
-                        self._sessions[thread_id] = session
+                        self._sessions.put(thread_id, session)
                 elif kind == "assistant":
                     for block in (event.get("message") or {}).get("content") or []:
                         if not isinstance(block, dict):
@@ -156,7 +239,9 @@ class DroidAdapter:
                             tool_call_id = str(block.get("id") or uuid.uuid4())
                             yield ToolCallStartEvent(
                                 tool_call_id=tool_call_id,
-                                tool_call_name=str(block.get("name") or "tool"),
+                                tool_call_name=_tool_name(
+                                    str(block.get("name") or "tool")
+                                ),
                             )
                             yield ToolCallArgsEvent(
                                 tool_call_id=tool_call_id,
@@ -196,7 +281,23 @@ class DroidAdapter:
                 return
             yield RunFinishedEvent(thread_id=thread_id, run_id=run_id)
         finally:
-            # A consumer that goes away must not leave a droid process behind.
+            # A consumer that goes away must not leave a droid process behind,
+            # and a finished run must not leave its grant readable on disk.
             if process.returncode is None:
                 process.kill()
                 await process.wait()
+            if run_file is not None:
+                run_file.unlink(missing_ok=True)
+
+
+class _EphemeralSessions:
+    """The store's shape without its file, for an adapter built bare in tests."""
+
+    def __init__(self):
+        self._sessions: dict[str, str] = {}
+
+    def get(self, thread_id: str) -> str:
+        return self._sessions.get(thread_id, "")
+
+    def put(self, thread_id: str, session_id: str) -> None:
+        self._sessions[thread_id] = session_id

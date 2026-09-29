@@ -1,33 +1,111 @@
 """Factory's Droid as a Bot, spoken to over AG-UI.
 
 The default harness. Droid ships no AG-UI server of its own, so this one wraps
-`droid exec` — Factory's headless mode — behind the same endpoint shape every
-other harness serves: `/health` for Compose, the run route at the server root,
-and nothing without the deployment's own token.
+Droid's own headless modes behind the same endpoint shape every other harness
+serves: `/health` for Compose, the run route at the server root, and nothing
+without the deployment's own token.
 
-Credentials are decided once, at import, in `credentials.py`: a Factory key
-runs Droid as Factory ships it, and a model-provider key from the model screen
-is written into Droid's own BYOK config instead. Neither is a startup refusal
-that names both remedies.
+Two transports, one seam. `droid exec --output-format stream-json` is the
+default: one process per run, an output format this repository regression-tests.
+`DROID_TRANSPORT=acp` keeps one Droid alive and speaks the Agent Client
+Protocol instead — see `acp.py` for what that buys and costs. Everything above
+the transport is identical: same events, same threads, same tools.
+
+Credentials are decided once, at import, in `credentials.py`: a Factory key —
+first-class on the model screen now — runs Droid as Factory ships it, and a
+model-provider key is written into Droid's own BYOK config instead. Neither
+being present is refused at startup with both remedies named.
+
+The deployment's own tools are served to Droid natively, over MCP: when the
+compose file hands this container the signed tool callback, the bridge in
+`mcp_proxy.py` is registered in Droid's own `~/.factory/mcp.json` so `droid
+exec` finds it, and per run the adapter says which tools that run actually
+carries. Droid's workspace and sessions live in `/workspace` and `~/.factory`,
+both mounted by the deployment so they outlive any one container.
 """
 
+import json
 import os
+import sys
+from pathlib import Path
 
 from ag_ui.core import RunAgentInput
 from ag_ui.encoder import EventEncoder
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from .adapter import DroidAdapter, DroidSettings
+from .acp import AcpDroid
+from .adapter import DroidAdapter, DroidSettings, MCP_SERVER_NAME
 from .credentials import resolve, write_config
+from .sessions import SessionStore
 
 TOKEN_HEADER = "x-openbot-agent-token"
+
+
+def _workspace() -> str:
+    """Where Droid works: the deployment's mount, or nowhere in particular.
+
+    `/workspace` is where compose mounts the shared workspace volume; an
+    `AGENTS.md` kept there is read by Droid itself, natively, with nothing for
+    this harness to do. `DROID_WORKSPACE` overrides for deployments that mount
+    elsewhere, and a path that does not exist means no mount was given, which
+    must not become a spawn that dies on a missing directory.
+    """
+    workspace = (os.environ.get("DROID_WORKSPACE") or "/workspace").strip()
+    return workspace if os.path.isdir(workspace) else ""
+
+
+def _register_mcp_bridge() -> None:
+    """Name the deployment-tools bridge in Droid's own MCP config.
+
+    Written whole, like the BYOK config: this container's `~/.factory` is the
+    deployment's own volume and Droid's config in it is this harness's to
+    manage. Skipped when compose handed over no tool callback — a bridge with
+    nothing to call would only put an empty listing in front of every run.
+    """
+    if not (os.environ.get("OPENBOT_TOOL_URL") or "").strip():
+        return
+    if not (os.environ.get("AGENT_TOOL_TOKEN") or "").strip():
+        return
+    path = Path.home() / ".factory" / "mcp.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(
+            {
+                "mcpServers": {
+                    MCP_SERVER_NAME: {
+                        "type": "stdio",
+                        "command": sys.executable,
+                        "args": [str(Path(__file__).with_name("mcp_proxy.py"))],
+                    }
+                }
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
 
 _credentials = resolve()
 if _credentials.config is not None:
     write_config(_credentials.config)
+_register_mcp_bridge()
 
-adapter = DroidAdapter(DroidSettings(model=_credentials.model))
+_settings = DroidSettings(
+    model=_credentials.model,
+    autonomy=(os.environ.get("DROID_AUTONOMY") or "low").strip() or "low",
+    workspace=_workspace(),
+)
+
+# The transport is an implementation detail of this file: everything else in
+# the deployment sees the same AG-UI endpoint whichever one is chosen.
+if (os.environ.get("DROID_TRANSPORT") or "").strip() == "acp":
+    adapter = AcpDroid(_settings)
+else:
+    adapter = DroidAdapter(
+        _settings,
+        sessions=SessionStore(Path.home() / ".factory" / "openbot-threads.json"),
+    )
 
 app = FastAPI()
 

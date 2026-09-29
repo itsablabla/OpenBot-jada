@@ -33,6 +33,11 @@ def load_main(monkeypatch, **env):
         "GOOGLE_API_KEY",
         "BOT_PROVIDER",
         "BOT_MODEL",
+        "OPENBOT_TOOL_URL",
+        "AGENT_TOOL_TOKEN",
+        "DROID_TRANSPORT",
+        "DROID_AUTONOMY",
+        "DROID_WORKSPACE",
     ):
         monkeypatch.delenv(variable, raising=False)
     for variable, value in env.items():
@@ -117,3 +122,68 @@ def test_no_credential_at_all_is_refused_at_startup(monkeypatch, tmp_path):
         load_main(monkeypatch, HOME=str(tmp_path))
     assert "FACTORY_API_KEY" in str(refusal.value)
     assert "OPENAI_API_KEY" in str(refusal.value)
+
+
+def test_the_deployment_tool_bridge_is_registered_with_droid(monkeypatch, tmp_path):
+    load_main(
+        monkeypatch,
+        FACTORY_API_KEY="fk-1",
+        HOME=str(tmp_path),
+        OPENBOT_TOOL_URL="http://server.test/api/agent-tools/call",
+        AGENT_TOOL_TOKEN="tool-token",
+    )
+    config = json.loads(
+        (tmp_path / ".factory" / "mcp.json").read_text(encoding="utf-8")
+    )
+    server = config["mcpServers"]["openbot"]
+    assert server["type"] == "stdio"
+    assert server["args"][-1].endswith("mcp_proxy.py")
+
+
+def test_no_callback_means_no_bridge_in_droids_config(monkeypatch, tmp_path):
+    load_main(monkeypatch, FACTORY_API_KEY="fk-1", HOME=str(tmp_path))
+    assert not (tmp_path / ".factory" / "mcp.json").exists()
+
+
+def test_the_default_transport_persists_sessions_under_the_factory_home(
+    monkeypatch, tmp_path
+):
+    from src.adapter import DroidAdapter
+    from src.sessions import SessionStore
+
+    main = load_main(monkeypatch, FACTORY_API_KEY="fk-1", HOME=str(tmp_path))
+    assert isinstance(main.adapter, DroidAdapter)
+    assert isinstance(main.adapter._sessions, SessionStore)
+
+
+def test_the_acp_transport_is_chosen_by_environment(monkeypatch, tmp_path):
+    from src.acp import AcpDroid
+
+    main = load_main(
+        monkeypatch, FACTORY_API_KEY="fk-1", HOME=str(tmp_path), DROID_TRANSPORT="acp"
+    )
+    assert isinstance(main.adapter, AcpDroid)
+
+
+def test_autonomy_and_workspace_come_from_the_environment(monkeypatch, tmp_path):
+    workspace = tmp_path / "workspace"
+    workspace.mkdir()
+    main = load_main(
+        monkeypatch,
+        FACTORY_API_KEY="fk-1",
+        HOME=str(tmp_path),
+        DROID_AUTONOMY="medium",
+        DROID_WORKSPACE=str(workspace),
+    )
+    assert main._settings.autonomy == "medium"
+    assert main._settings.workspace == str(workspace)
+
+
+def test_a_missing_workspace_directory_is_simply_not_used(monkeypatch, tmp_path):
+    main = load_main(
+        monkeypatch,
+        FACTORY_API_KEY="fk-1",
+        HOME=str(tmp_path),
+        DROID_WORKSPACE=str(tmp_path / "nowhere"),
+    )
+    assert main._settings.workspace == ""

@@ -1,12 +1,15 @@
 """What Droid signs its model calls with, decided once at startup.
 
-Two credential paths, never mixed. `FACTORY_API_KEY` is Factory's own: Droid
-uses it as it is and picks its models from Factory's catalogue. Without one,
-the key the model screen chose is turned into a Droid BYOK ("bring your own
-key") custom model, written to `~/.factory/config.json` before the CLI first
-runs — which provider that is arrives through `BOT_PROVIDER` and the key
-variable that `shared/model-providers.json` names for it, the same contract
-every other Bot reads.
+Two credential paths, never mixed, in this order. `FACTORY_API_KEY` is
+Factory's own — the model screen's Factory row writes it, or an operator sets
+it by hand — and Droid uses it as it is, picking its models from Factory's
+catalogue. Without one, the key the model screen chose for another provider is
+turned into a Droid BYOK ("bring your own key") custom model, written to
+`~/.factory/config.json` before the CLI first runs — which provider that is
+arrives through `BOT_PROVIDER` and the key variable that
+`shared/model-providers.json` names for it, the same contract every other Bot
+reads. The Factory key wins when both are somehow present, because it is the
+one that was set for exactly this Bot.
 
 Neither being present is refused at startup with both remedies named, because
 the alternative is a correct-looking Bot whose first answer is a credential

@@ -324,10 +324,17 @@ services:
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       GOOGLE_GENERATIVE_AI_BASE_URL: ${GOOGLE_GENERATIVE_AI_BASE_URL:-}
       BOT_PROVIDER: ${BOT_PROVIDER:-openai}
-      # Factory's own key, for the Droid harness. Not written by setup: the model screen's key is
-      # turned into Droid's BYOK config inside the container, and this passes through only when an
-      # operator sets it in `.env` to run Factory's own models instead.
+      # Factory's own key, for the Droid harness. Written by setup when the model screen's Factory
+      # row is chosen; otherwise the model screen's provider key is turned into Droid's BYOK config
+      # inside the container, and an operator can still set this in `.env` by hand.
       FACTORY_API_KEY: ${FACTORY_API_KEY:-}
+      # How far Droid's own tools may go: low keeps it to reads, medium and high let it edit and
+      # run. Meaningful now that the workspace below is mounted; low stays the default because
+      # nothing about a fresh install says its Bot may edit what it can see.
+      DROID_AUTONOMY: ${DROID_AUTONOMY:-low}
+      # stream-json (default) spawns one droid per run; acp keeps one alive and speaks the Agent
+      # Client Protocol. Same AG-UI endpoint either way; see agent-droid/src/main.py.
+      DROID_TRANSPORT: ${DROID_TRANSPORT:-}
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
       # A path into the mount below, set only when a ChatGPT plan was signed in to. The file is
       # there either way; this variable is what tells the harness to read it.
@@ -343,6 +350,14 @@ services:
       # The provider writes by atomically replacing the file with a sibling temporary file, so the
       # mount has to be the containing directory rather than the file mount point.
       - ./.langchain:/root/.langchain
+      # The same workspace the deployment's computer works in, so a harness with file tools — Droid
+      # today — reads and edits what the person's Bots actually have, and picks up an AGENTS.md
+      # kept there natively. Harnesses without file tools simply never look.
+      - agent-workspace:/workspace
+      # Droid's own state: sessions, BYOK config, the thread map in
+      # agent-droid/src/sessions.py. A named volume so a conversation survives the container the
+      # way threads survive everywhere else in this deployment.
+      - harness-state:/root/.factory
 
   # The same Bot behavior on a framework, exposed as another AG-UI endpoint and registry row.
   agent-langgraph:
@@ -403,6 +418,7 @@ networks:
 volumes:
   postgres-data:
   agent-workspace:
+  harness-state:
   spire-server-data:
   spire-server-socket:
   spire-agent-socket:
