@@ -4,12 +4,17 @@
 FROM python:3.12-slim
 
 # The Droid CLI, from Factory's own installer, plus the ripgrep it shells out to for search.
-# curl and ca-certificates are kept: the CLI updates itself through them.
+# curl and ca-certificates are kept: the CLI updates itself through them. The installer is
+# downloaded to a file first — piping curl straight into sh exits 0 on a failed download, and a
+# `droid` that is not there should fail the build, not the first run. `command -v` proves it.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl ca-certificates ripgrep \
     && rm -rf /var/lib/apt/lists/* \
-    && curl -fsSL https://app.factory.ai/cli | sh
-ENV PATH="/root/.local/bin:${PATH}"
+    && curl -fsSL https://app.factory.ai/cli -o /tmp/install-droid.sh \
+    && sh /tmp/install-droid.sh \
+    && rm /tmp/install-droid.sh
+# The installer drops `droid` into /usr/local/bin, already on PATH; prove it before shipping.
+RUN command -v droid
 
 WORKDIR /app
 
