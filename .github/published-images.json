@@ -2,6 +2,7 @@
   "agent-computer",
   "supervisor",
   "agent-bot",
+  "agent-droid",
   "agent-langgraph",
   "server",
   "agent-crewai",

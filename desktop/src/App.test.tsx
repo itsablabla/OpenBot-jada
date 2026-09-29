@@ -322,7 +322,7 @@ test("installation completes before either sign-in is available", async () => {
       command: "prepare_installation",
       args: {
         root: "/tmp/install-before-signin",
-        harness: { id: "langgraph" },
+        harness: { id: "droid" },
       },
     },
   ]);
@@ -594,7 +594,7 @@ test("changing the Bot invalidates its completed installation", async () => {
   expect(installationCalls()).toEqual([
     {
       command: "prepare_installation",
-      args: { root: "/tmp/openbot-app-test", harness: { id: "langgraph" } },
+      args: { root: "/tmp/openbot-app-test", harness: { id: "droid" } },
     },
     {
       command: "prepare_installation",
@@ -665,7 +665,7 @@ test("a failed automatic reopen offers recovery without retrying or installing",
   setupRootConfiguration("/tmp/reopen-failure", async () => ({
     ...savedOpenAiConfiguration(),
     saved: { ...savedOpenAiConfiguration().saved, model: "open-ai-api-key" },
-    launch: { harness: { id: "langgraph" } },
+    launch: { harness: { id: "droid" } },
   }));
   const previous = invokeHandler;
   invokeHandler = async (command, args) => {
@@ -1054,7 +1054,7 @@ test.each(["supervisor", "windows"])(
     setupRootConfiguration("/tmp/reopen-blocked", async () => ({
       ...savedOpenAiConfiguration(),
       saved: { ...savedOpenAiConfiguration().saved, model: "open-ai-api-key" },
-      launch: { harness: { id: "langgraph" } },
+      launch: { harness: { id: "droid" } },
     }));
     const previous = invokeHandler;
     invokeHandler = async (command, args) => {
@@ -1115,7 +1115,7 @@ test("setup records telemetry without a consent gate and deduplicates viewed ste
   expect(setupEvents()).toEqual([
     { event: { kind: "step_viewed", step: "welcome" } },
     { event: { kind: "step_viewed", step: "harness" } },
-    { event: { kind: "harness_chosen", harness: "langgraph" } },
+    { event: { kind: "harness_chosen", harness: "droid" } },
     { event: { kind: "step_viewed", step: "install" } },
   ]);
   await userEvent.click(view.getByRole("button", { name: "Back" }));
@@ -1361,8 +1361,8 @@ function setupRootConfiguration(
     if (command === "harnesses") {
       return [
         {
-          id: "langgraph",
-          name: "LangGraph",
+          id: "droid",
+          name: "Factory Droid",
           summary: "Default Bot",
           image: null,
           health_path: null,
@@ -1530,8 +1530,8 @@ function useCompatibleEndpointSetup(
     if (command === "harnesses") {
       return [
         {
-          id: "langgraph",
-          name: "LangGraph",
+          id: "droid",
+          name: "Factory Droid",
           summary: "Default Bot",
           image: null,
           health_path: null,
@@ -1671,7 +1671,7 @@ test.each([true, false])(
       apiKey: "",
       apiUrl: "https://api.intelligence.copilotkit.ai",
       gatewayWsUrl: "wss://realtime.intelligence.copilotkit.ai",
-      harness: { id: "langgraph" },
+      harness: { id: "droid" },
       model: {
         provider: "openai-compatible",
         login: "endpoint",
@@ -1761,8 +1761,8 @@ test("Change the model after an Ask failure stops the stack and reaches the prov
     if (command === "harnesses") {
       return [
         {
-          id: "langgraph",
-          name: "LangGraph",
+          id: "droid",
+          name: "Factory Droid",
           summary: "Default Bot",
           image: null,
           health_path: null,
@@ -1856,8 +1856,8 @@ test("empty Intelligence projects keep sign-in retryable while Start waits for a
     if (command === "harnesses") {
       return [
         {
-          id: "langgraph",
-          name: "LangGraph",
+          id: "droid",
+          name: "Factory Droid",
           summary: "Default Bot",
           image: null,
           health_path: null,
@@ -2133,8 +2133,8 @@ test("saved startup credentials enable Start without raw protected secrets on mo
     if (command === "harnesses") {
       return [
         {
-          id: "langgraph",
-          name: "LangGraph",
+          id: "droid",
+          name: "Factory Droid",
           summary: "Default Bot",
           image: null,
           health_path: null,
@@ -2505,7 +2505,7 @@ test.each([
       apiKey: "",
       apiUrl: "https://current.example/api",
       gatewayWsUrl: "wss://current.example/ws",
-      harness: { id: "langgraph" },
+      harness: { id: "droid" },
       model: savedModel
         ? { provider: "openai", login: "api-key", saved: true }
         : {
@@ -2545,8 +2545,8 @@ function useBringYourOwnHarnessSetup() {
     if (command === "harnesses") {
       return [
         {
-          id: "langgraph",
-          name: "LangGraph",
+          id: "droid",
+          name: "Factory Droid",
           summary: "Default Bot",
           image: null,
           health_path: null,
@@ -2722,7 +2722,7 @@ test.each(["http://localhost:11434/v1", "https://models.example/v1"])(
       apiKey: "",
       apiUrl: "https://api.intelligence.copilotkit.ai",
       gatewayWsUrl: "wss://realtime.intelligence.copilotkit.ai",
-      harness: { id: "langgraph" },
+      harness: { id: "droid" },
       model: {
         provider: "openai-compatible",
         login: "endpoint",
@@ -2929,8 +2929,8 @@ for (const provider of [
       if (command === "harnesses") {
         return [
           {
-            id: "langgraph",
-            name: "LangGraph",
+            id: "droid",
+            name: "Factory Droid",
             summary: "Default Bot",
             image: null,
             health_path: null,
@@ -3006,7 +3006,7 @@ for (const provider of [
         login: "plan",
         saved: true,
       },
-      harness: { id: "langgraph" },
+      harness: { id: "droid" },
     });
   });
 }

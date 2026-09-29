@@ -10,6 +10,7 @@ export type SetupStep =
   | "ask";
 
 const HARNESSES = {
+  droid: "droid",
   crewai: "crewai",
   llamaindex: "llamaindex",
   agno: "agno",

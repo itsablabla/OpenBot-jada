@@ -324,6 +324,10 @@ services:
       GOOGLE_API_KEY: ${GOOGLE_API_KEY:-}
       GOOGLE_GENERATIVE_AI_BASE_URL: ${GOOGLE_GENERATIVE_AI_BASE_URL:-}
       BOT_PROVIDER: ${BOT_PROVIDER:-openai}
+      # Factory's own key, for the Droid harness. Not written by setup: the model screen's key is
+      # turned into Droid's BYOK config inside the container, and this passes through only when an
+      # operator sets it in `.env` to run Factory's own models instead.
+      FACTORY_API_KEY: ${FACTORY_API_KEY:-}
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
       # A path into the mount below, set only when a ChatGPT plan was signed in to. The file is
       # there either way; this variable is what tells the harness to read it.

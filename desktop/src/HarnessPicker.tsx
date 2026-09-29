@@ -20,8 +20,8 @@ export type HarnessChoice = {
   agentUrl?: string;
 };
 
-/** What OpenBot sets up unless somebody says otherwise. David's call. */
-export const DEFAULT_HARNESS = "langgraph";
+/** What OpenBot sets up unless somebody says otherwise: Factory's Droid. */
+export const DEFAULT_HARNESS = "droid";
 
 /**
  * Which Bot, answered for them.

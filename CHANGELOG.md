@@ -8,6 +8,16 @@ Newest first. `Unreleased` is what is on `main` and not yet tagged.
 
 ## Unreleased
 
+### Factory's Droid is the default runtime
+
+Desktop setup's Bot step now defaults to **Factory Droid**, a new harness (`agent-droid`, port
+4214) that wraps Factory's headless `droid exec --output-format stream-json` behind the same AG-UI
+endpoint every other harness serves. The model screen works unchanged: the key it collects is
+written into Droid's own BYOK ("bring your own key") configuration inside the container, and an
+operator who wants Factory's own models sets `FACTORY_API_KEY` in `.env` instead — the compose
+`agent-harness` service passes it through. Existing installations keep the harness they picked;
+only fresh setups see the new default. LangGraph and every other row remain in the picker.
+
 ### A coworker can be pinned to the top of the Agents screen
 
 A coworker's Manage tab has a **Pin** switch beside Hide, and pinned coworkers move into a

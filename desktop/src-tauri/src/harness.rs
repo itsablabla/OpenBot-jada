@@ -6,10 +6,12 @@
 //!
 //! Two things this list deliberately does not contain. OpenBot's own `built-in` agent type, which
 //! is a system prompt and not a harness: everybody leaves setup with a real one, either an image we
-//! publish or an address they already run. And anything whose AG-UI integration we would have to
-//! write ourselves. A harness earns a row only when the integration exists and somebody other than
-//! us keeps it working, which is why Codex and Gemini CLI are absent despite being the two most
-//! popular harnesses there are.
+//! publish or an address they already run. And, with one deliberate exception, anything whose
+//! AG-UI integration we would have to write ourselves. A harness earns a row when the integration
+//! exists and somebody other than us keeps it working, which is why Codex and Gemini CLI are
+//! absent despite being the two most popular harnesses there are. The exception is Factory's
+//! Droid: it is the default runtime, so the wrapper in `agent-droid/` is ours to keep working and
+//! the row carries that maintenance honestly.
 //!
 //! Rows and maintainer classes come from the AG-UI repository's own support table, which is
 //! canonical. `docs.ag-ui.com` disagrees on several and is wrong.
@@ -151,7 +153,7 @@ pub fn catalogue() -> Vec<Harness> {
     // Marks are vendored under the row's own id, so a row finds its own without a second mapping.
     // The three with none are named here rather than discovered at draw time, because a missing
     // file and a brand with no mark are different things and only one of them is a bug.
-    const UNMARKED: [&str; 3] = ["agno", "ag2", "langroid"];
+    const UNMARKED: [&str; 4] = ["droid", "agno", "ag2", "langroid"];
     /*
      * The directory is given, not derived from the id, and that is deliberate.
      *
@@ -184,6 +186,17 @@ pub fn catalogue() -> Vec<Harness> {
     };
 
     vec![
+        // First because it is the default, not because of the ranking below: the one wrapper we
+        // maintain ourselves, around Factory's headless `droid exec`. See agent-droid/src.
+        ours(
+            "droid",
+            "agent-droid",
+            4214,
+            "",
+            "Factory Droid",
+            "Factory's coding agent, run headless.",
+            Maintainer::FirstParty,
+        ),
         ours(
             "crewai",
             "agent-crewai",
@@ -889,17 +902,18 @@ mod tests {
         }
     }
 
-    /// The unmarked rows are the three brands with no mark in any maintained set. If a fourth
-    /// appears, somebody dropped a mark rather than a brand losing one, and that is worth stopping
-    /// for.
+    /// The unmarked rows are Droid plus the three brands with no mark in any maintained set.
+    /// Droid's row stays unmarked because no maintained set carries Factory's mark and nothing
+    /// here is invented. If a fifth appears, somebody dropped a mark rather than a brand losing
+    /// one, and that is worth stopping for.
     #[test]
-    fn only_the_three_brands_without_a_mark_are_unmarked() {
+    fn only_the_brands_without_a_mark_are_unmarked() {
         let unmarked: Vec<String> = catalogue()
             .into_iter()
             .filter(|h| h.mark.is_none() && h.image.is_some())
             .map(|h| h.id)
             .collect();
-        assert_eq!(unmarked, vec!["agno", "ag2", "langroid"]);
+        assert_eq!(unmarked, vec!["droid", "agno", "ag2", "langroid"]);
     }
 
     /// Mastra is offered, and the row is the assertion that the bridge on OpenBot's side works.
@@ -912,8 +926,9 @@ mod tests {
         assert!(ids.contains(&"mastra".to_string()), "Mastra is not offered");
     }
 
-    /// Codex and Gemini CLI have no integration and we do not write adapters, so they cannot appear
-    /// however popular they are.
+    /// Codex and Gemini CLI have no integration and no wrapper of ours, so they cannot appear
+    /// however popular they are. Droid is the one row whose adapter we keep ourselves; these two
+    /// are not.
     #[test]
     fn harnesses_with_no_integration_are_absent() {
         let ids: Vec<String> = catalogue().into_iter().map(|h| h.id).collect();
@@ -937,12 +952,14 @@ mod tests {
         assert_eq!(anthropic, vec!["claude-agent-sdk".to_string()]);
     }
 
-    /// Ranked, and the order is load-bearing: it is what somebody reads top-down. CrewAI leads on
-    /// stars and the paste-a-URL row is last because it is the one that installs nothing.
+    /// Ranked, and the order is load-bearing: it is what somebody reads top-down. Droid leads
+    /// because it is the default, CrewAI follows on stars, and the paste-a-URL row is last because
+    /// it is the one that installs nothing.
     #[test]
     fn the_list_is_ranked_and_ends_with_the_address_row() {
         let ids: Vec<String> = catalogue().into_iter().map(|h| h.id).collect();
-        assert_eq!(ids.first().map(String::as_str), Some("crewai"));
+        assert_eq!(ids.first().map(String::as_str), Some("droid"));
+        assert_eq!(ids.get(1).map(String::as_str), Some("crewai"));
         assert_eq!(ids.last().map(String::as_str), Some("byo-url"));
     }
 

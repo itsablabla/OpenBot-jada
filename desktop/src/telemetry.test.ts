@@ -10,6 +10,10 @@ test("harness telemetry admits catalogue enums and excludes URLs and unknown IDs
     kind: "harness_chosen",
     harness: "claude_agent_sdk",
   });
+  expect(harnessChoiceEvent("droid")).toEqual({
+    kind: "harness_chosen",
+    harness: "droid",
+  });
   for (const unknown of [
     "https://private-agent.example",
     "future-harness",
