@@ -33,7 +33,7 @@ export type SetupEvent =
   | { kind: "harness_chosen"; harness: Harness }
   | {
       kind: "model_chosen";
-      provider: "openai" | "anthropic" | "compatible" | "none";
+      provider: "openai" | "anthropic" | "factory" | "compatible" | "none";
       credential_path: "subscription" | "api_key" | "none";
       custom_base_url: boolean;
     };
@@ -67,6 +67,14 @@ export function modelChoiceEvent(
       provider,
       credential_path: login === "plan" ? "subscription" : "api_key",
       custom_base_url: Boolean(choice.baseUrl?.trim()),
+    };
+  }
+  if (provider === "factory" && login === "api-key") {
+    return {
+      kind: "model_chosen",
+      provider,
+      credential_path: "api_key",
+      custom_base_url: false,
     };
   }
   if (provider === "openai-compatible" && login === "endpoint") {

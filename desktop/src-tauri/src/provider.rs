@@ -105,6 +105,15 @@ pub fn catalogue() -> Vec<Provider> {
             caution: None,
         },
         Provider {
+            id: "factory".into(),
+            name: "Factory".into(),
+            summary: "Use a Factory API key; the Droid runtime speaks for it natively.".into(),
+            logins: vec![Login::ApiKey],
+            // Deliberately unmarked until an honest Factory mark is vendored under marks/.
+            mark: None,
+            caution: None,
+        },
+        Provider {
             id: "openai-compatible".into(),
             name: "Any OpenAI-compatible endpoint".into(),
             summary: "Azure, Bedrock, Mistral, DeepSeek, Ollama, vLLM or your own.".into(),
@@ -161,7 +170,14 @@ mod tests {
         let ids: Vec<&str> = rows.iter().map(|provider| provider.id.as_str()).collect();
         assert_eq!(
             ids,
-            vec!["openai", "anthropic", "google", "xai", "openai-compatible"]
+            vec![
+                "openai",
+                "anthropic",
+                "google",
+                "xai",
+                "factory",
+                "openai-compatible"
+            ]
         );
     }
 

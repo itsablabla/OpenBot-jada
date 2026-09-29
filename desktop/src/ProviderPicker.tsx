@@ -35,6 +35,7 @@ export type SavedConfiguration = {
   model?:
     | "open-ai-api-key"
     | "anthropic-api-key"
+    | "factory-api-key"
     | "claude-plan"
     | "chat-gpt-plan"
     | "compatible-endpoint"
@@ -43,7 +44,7 @@ export type SavedConfiguration = {
     | null;
   intelligenceApiKey?: boolean | null;
   modelApiKeys?: Partial<
-    Record<"openai" | "anthropic" | "compatible", boolean | null>
+    Record<"openai" | "anthropic" | "factory" | "compatible", boolean | null>
   >;
   modelSessions?: Partial<
     Record<"openai" | "anthropic" | "google" | "xai", boolean | null>
@@ -56,6 +57,7 @@ export type HeldConfiguration = {
   INTELLIGENCE_GATEWAY_WS_URL?: string;
   OPENAI_API_KEY?: string;
   ANTHROPIC_API_KEY?: string;
+  FACTORY_API_KEY?: string;
   OPENAI_BASE_URL?: string;
   OPENAI_CONTAINER_BASE_URL?: string;
   BOT_MODEL?: string;
@@ -104,6 +106,8 @@ export function recordedModel(held: HeldConfiguration): ModelChoice | null {
       return { provider: "openai", login: "api-key", saved: true };
     case "anthropic-api-key":
       return { provider: "anthropic", login: "api-key", saved: true };
+    case "factory-api-key":
+      return { provider: "factory", login: "api-key", saved: true };
     case "claude-plan":
       return { provider: "anthropic", login: "plan", saved: true };
     case "chat-gpt-plan":
@@ -409,7 +413,7 @@ export function ProviderPicker({
         (reuse?.provider === row.id && reuse.login === "plan")
       : false;
   const savedApiKey =
-    row?.id === "openai" || row?.id === "anthropic"
+    row?.id === "openai" || row?.id === "anthropic" || row?.id === "factory"
       ? held.saved?.modelApiKeys?.[row.id] === true ||
         (reuse?.provider === row.id && reuse.login === "api-key")
       : false;
@@ -512,7 +516,9 @@ export function ProviderPicker({
                     ? held.OPENAI_API_KEY
                     : r.id === "anthropic"
                       ? held.ANTHROPIC_API_KEY
-                      : undefined;
+                      : r.id === "factory"
+                        ? held.FACTORY_API_KEY
+                        : undefined;
                 setApiKey(kept ?? "");
                 const nextPreset = endpointPresets[r.id];
                 const restoreEndpoint =
@@ -723,7 +729,9 @@ export function ProviderPicker({
                 <p className="lede">A saved {row.name} API key will be used.</p>
               ) : null}
               {!savedApiKey &&
-                (row.id === "openai" || row.id === "anthropic") &&
+                (row.id === "openai" ||
+                  row.id === "anthropic" ||
+                  row.id === "factory") &&
                 held.saved?.modelApiKeys?.[row.id] !== false && (
                   <button
                     type="button"
@@ -747,6 +755,14 @@ export function ProviderPicker({
                   spellCheck={false}
                 />
               </div>
+              {row.id === "factory" && (
+                // Said for the same reason the plan footnote is: a Factory key
+                // re-points the Bot to the one runtime that can spend it.
+                <p className="footnote">
+                  Your Bot will be Droid, which is the one that can use this
+                  key.
+                </p>
+              )}
             </>
           )}
 

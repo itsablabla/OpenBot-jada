@@ -18,6 +18,22 @@ operator who wants Factory's own models sets `FACTORY_API_KEY` in `.env` instead
 `agent-harness` service passes it through. Existing installations keep the harness they picked;
 only fresh setups see the new default. LangGraph and every other row remain in the picker.
 
+### Droid is native, not merely wrapped
+
+The model screen has a **Factory** row: paste a Factory API key and setup writes `FACTORY_API_KEY`,
+and — like a Claude or ChatGPT plan — the credential picks the one Bot that can spend it, so the
+harness step re-points to Droid and says so on screen. The harness itself grew four things it did
+not have. Droid now works in the deployment's shared `agent-workspace` volume (mounted at
+`/workspace`, with `DROID_AUTONOMY` choosing how far its own tools may go there, default `low`), so
+its file tools and a workspace `AGENTS.md` behave the way Factory documents. The deployment's own
+tools reach Droid natively over MCP: the harness registers a bridge in `~/.factory/mcp.json` that
+forwards `tools/call` to the server's signed agent-tools callback, the same contract the LangGraph
+Bot uses. Conversations survive restarts: Droid's session state (`/root/.factory`, a new
+`harness-state` volume) and the thread→session map both persist, so a thread picks up where it left
+off after an update. And `DROID_TRANSPORT=acp` opts into Droid's Agent Client Protocol — one
+persistent JSON-RPC process instead of one `droid exec` per run — with the same AG-UI surface
+outside.
+
 ### A coworker can be pinned to the top of the Agents screen
 
 A coworker's Manage tab has a **Pin** switch beside Hide, and pinned coworkers move into a

@@ -72,6 +72,9 @@ pub fn speaking_for(provider: &str) -> Option<&'static str> {
     match provider {
         "anthropic" => Some("claude-agent-sdk"),
         "openai" => Some("langgraph"),
+        // Same shape for a Factory key: only the Droid harness reads `FACTORY_API_KEY`, so the
+        // credential picks the one Bot that can actually spend it.
+        "factory" => Some("droid"),
         _ => None,
     }
 }
@@ -416,7 +419,7 @@ mod tests {
     /// Both plans name a Bot that exists and can actually use them.
     #[test]
     fn each_plan_names_a_bot_that_exists() {
-        for provider in ["anthropic", "openai"] {
+        for provider in ["anthropic", "openai", "factory"] {
             let id = super::speaking_for(provider).expect("a plan with no Bot to run it");
             assert!(
                 super::catalogue().iter().any(|row| row.id == id),

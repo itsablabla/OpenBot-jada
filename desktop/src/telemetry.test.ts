@@ -73,6 +73,23 @@ test("a custom endpoint becomes a boolean without exporting its URL, model, or c
   });
 });
 
+test("a factory key is exported as a provider name and nothing else", () => {
+  expect(
+    modelChoiceEvent({
+      provider: "factory",
+      login: "api-key",
+      apiKey: "synthetic-private-key",
+    }),
+  ).toEqual({
+    kind: "model_chosen",
+    provider: "factory",
+    credential_path: "api_key",
+    custom_base_url: false,
+  });
+  // Factory has no plan sign-in; an impossible pair is not exported.
+  expect(modelChoiceEvent({ provider: "factory", login: "plan" })).toBeNull();
+});
+
 test("a skipped model is explicit and unsupported providers are not exported", () => {
   expect(modelChoiceEvent(null)).toEqual({
     kind: "model_chosen",
