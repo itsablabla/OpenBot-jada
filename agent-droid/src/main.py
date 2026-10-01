@@ -22,10 +22,17 @@ compose file hands this container the signed tool callback, the bridge in
 exec` finds it, and per run the adapter says which tools that run actually
 carries. Droid's workspace and sessions live in `/workspace` and `~/.factory`,
 both mounted by the deployment so they outlive any one container.
+
+The container can also stand as its own Droid Computer: `DROID_COMPUTER_NAME`
+registers it with Factory (`droid computer register`) and keeps `droid daemon
+--remote-access` running beside the server, so Factory's app, CLI and Slack
+can reach the same persistent `~/.factory` and `/workspace` this harness uses.
+Opt-in, and only on a Factory key — registration is a Factory account feature.
 """
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -90,6 +97,43 @@ _credentials = resolve()
 if _credentials.config is not None:
     write_config(_credentials.config)
 _register_mcp_bridge()
+
+
+def _register_computer() -> subprocess.Popen | None:
+    """Stand this container up as its own Droid Computer, when asked to.
+
+    Registration (`droid computer register <name>`) is idempotent in effect
+    here because `~/.factory` is the deployment's own volume: a name already
+    registered on a previous start makes the command fail, and that failure is
+    tolerated rather than fatal — the daemon beside it is what matters. The
+    daemon (`droid daemon --remote-access`) is what connects the machine to
+    Factory's relay; it runs for as long as this process does, next to the
+    AG-UI server, sharing the same `~/.factory` and `/workspace`.
+
+    Only on a Factory key: a Droid Computer is a Factory account feature, and
+    without the account credential the register call could only fail after a
+    network timeout, which is a worse refusal than this quiet one.
+    """
+    name = (os.environ.get("DROID_COMPUTER_NAME") or "").strip()
+    if not name:
+        return None
+    if not (os.environ.get("FACTORY_API_KEY") or "").strip():
+        print(
+            "DROID_COMPUTER_NAME is set but FACTORY_API_KEY is not; a Droid "
+            "Computer needs a Factory credential, so none was registered.",
+            file=sys.stderr,
+        )
+        return None
+    try:
+        subprocess.run(["droid", "computer", "register", name], check=False, timeout=120)
+        return subprocess.Popen(["droid", "daemon", "--remote-access"])
+    except (OSError, subprocess.TimeoutExpired) as error:
+        print(f"Droid Computer registration failed: {error}", file=sys.stderr)
+        return None
+
+
+# Held so the relay daemon lives and dies with this process, not the first GC.
+_computer_daemon = _register_computer()
 
 _settings = DroidSettings(
     model=_credentials.model,

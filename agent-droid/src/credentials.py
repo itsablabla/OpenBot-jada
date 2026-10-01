@@ -1,19 +1,22 @@
 """What Droid signs its model calls with, decided once at startup.
 
-Two credential paths, never mixed, in this order. `FACTORY_API_KEY` is
-Factory's own — the model screen's Factory row writes it, or an operator sets
-it by hand — and Droid uses it as it is, picking its models from Factory's
-catalogue. Without one, the key the model screen chose for another provider is
-turned into a Droid BYOK ("bring your own key") custom model, written to
-`~/.factory/config.json` before the CLI first runs — which provider that is
-arrives through `BOT_PROVIDER` and the key variable that
-`shared/model-providers.json` names for it, the same contract every other Bot
-reads. The Factory key wins when both are somehow present, because it is the
-one that was set for exactly this Bot.
+Three credential paths, never mixed, most specific first. `DROID_BASE_URL`
+names a custom OpenAI-compatible endpoint by hand — with `DROID_MODEL` naming
+what it serves and `DROID_MODEL_API_KEY` if it wants one — and wins outright,
+because an operator who typed an address meant that address. Next,
+`FACTORY_API_KEY` is Factory's own — the model screen's Factory row writes it,
+or an operator sets it by hand — and Droid uses it as it is, picking its
+models from Factory's catalogue. Without either, the key the model screen
+chose for another provider is turned into a Droid BYOK ("bring your own key")
+custom model, written to `~/.factory/config.json` before the CLI first runs —
+which provider that is arrives through `BOT_PROVIDER` and the key variable
+that `shared/model-providers.json` names for it, the same contract every other
+Bot reads. The Factory key wins over a provider key when both are somehow
+present, because it is the one that was set for exactly this Bot.
 
-Neither being present is refused at startup with both remedies named, because
-the alternative is a correct-looking Bot whose first answer is a credential
-error from a process the person cannot see.
+None being present is refused at startup with the remedies named, because the
+alternative is a correct-looking Bot whose first answer is a credential error
+from a process the person cannot see.
 """
 
 from __future__ import annotations
@@ -62,6 +65,36 @@ class Credentials:
 
 def resolve(environ=None) -> Credentials:
     env = os.environ if environ is None else environ
+    base_url = (env.get("DROID_BASE_URL") or "").strip()
+    if base_url:
+        # A custom endpoint, named by hand, wins over everything: it is the
+        # most specific thing an operator can say about where models run.
+        model = (env.get("DROID_MODEL") or env.get("BOT_MODEL") or "").strip()
+        if not model:
+            raise SystemExit(
+                "DROID_BASE_URL names a custom endpoint but no model: set "
+                "DROID_MODEL to the model that endpoint serves."
+            )
+        # A placeholder when the endpoint wants no key, for the same reason the
+        # desktop's compatible path writes one: Ollama and vLLM ignore the
+        # value, and the CLI refuses a custom model without a string here.
+        key = (env.get("DROID_MODEL_API_KEY") or "").strip() or "not-needed"
+        return Credentials(
+            model=BYOK_MODEL_NAME,
+            config={
+                "custom_models": [
+                    {
+                        "model_display_name": BYOK_MODEL_NAME,
+                        "model": model,
+                        "base_url": base_url,
+                        "api_key": key,
+                        "provider": "generic-chat-completion-api",
+                        "max_tokens": 16384,
+                    }
+                ]
+            },
+        )
+
     factory_key = (env.get("FACTORY_API_KEY") or "").strip()
     if factory_key:
         # A model the environment pins is passed through; otherwise Droid's own

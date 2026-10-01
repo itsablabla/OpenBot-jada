@@ -38,6 +38,10 @@ def load_main(monkeypatch, **env):
         "DROID_TRANSPORT",
         "DROID_AUTONOMY",
         "DROID_WORKSPACE",
+        "DROID_COMPUTER_NAME",
+        "DROID_BASE_URL",
+        "DROID_MODEL",
+        "DROID_MODEL_API_KEY",
     ):
         monkeypatch.delenv(variable, raising=False)
     for variable, value in env.items():
@@ -187,3 +191,87 @@ def test_a_missing_workspace_directory_is_simply_not_used(monkeypatch, tmp_path)
         DROID_WORKSPACE=str(tmp_path / "nowhere"),
     )
     assert main._settings.workspace == ""
+
+
+def droid_on_path(tmp_path):
+    """A `droid` on PATH that records its argv, for the computer commands."""
+    import os
+    import stat
+
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir(exist_ok=True)
+    fake = bin_dir / "droid"
+    fake.write_text(
+        "#!/usr/bin/env python3\n"
+        "import json, sys\n"
+        f"open({str(tmp_path / 'argv.jsonl')!r}, 'a').write(json.dumps(sys.argv[1:]) + '\\n')\n",
+        encoding="utf-8",
+    )
+    fake.chmod(fake.stat().st_mode | stat.S_IEXEC)
+    return str(bin_dir) + os.pathsep + os.environ["PATH"]
+
+
+def computer_argv(tmp_path):
+    path = tmp_path / "argv.jsonl"
+    if not path.exists():
+        return []
+    return [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+    ]
+
+
+def test_a_named_computer_is_registered_and_its_daemon_runs(monkeypatch, tmp_path):
+    main = load_main(
+        monkeypatch,
+        FACTORY_API_KEY="fk-1",
+        HOME=str(tmp_path),
+        PATH=droid_on_path(tmp_path),
+        DROID_COMPUTER_NAME="openbot-harness",
+    )
+    assert main._computer_daemon is not None
+    main._computer_daemon.wait(timeout=10)
+    assert computer_argv(tmp_path) == [
+        ["computer", "register", "openbot-harness"],
+        ["daemon", "--remote-access"],
+    ]
+
+
+def test_no_name_means_no_computer_and_no_daemon(monkeypatch, tmp_path):
+    main = load_main(
+        monkeypatch,
+        FACTORY_API_KEY="fk-1",
+        HOME=str(tmp_path),
+        PATH=droid_on_path(tmp_path),
+    )
+    assert main._computer_daemon is None
+    assert computer_argv(tmp_path) == []
+
+
+def test_a_computer_needs_a_factory_key_and_says_so(monkeypatch, tmp_path, capsys):
+    main = load_main(
+        monkeypatch,
+        OPENAI_API_KEY="sk-test",
+        HOME=str(tmp_path),
+        PATH=droid_on_path(tmp_path),
+        DROID_COMPUTER_NAME="openbot-harness",
+    )
+    assert main._computer_daemon is None
+    assert computer_argv(tmp_path) == []
+    assert "FACTORY_API_KEY" in capsys.readouterr().err
+
+
+def test_a_custom_endpoint_becomes_droids_running_model(monkeypatch, tmp_path):
+    main = load_main(
+        monkeypatch,
+        DROID_BASE_URL="http://ollama:11434/v1",
+        DROID_MODEL="llama3",
+        HOME=str(tmp_path),
+    )
+    config = json.loads(
+        (tmp_path / ".factory" / "config.json").read_text(encoding="utf-8")
+    )
+    [row] = config["custom_models"]
+    assert row["base_url"] == "http://ollama:11434/v1"
+    assert row["model"] == "llama3"
+    assert main._settings.model == "openbot"

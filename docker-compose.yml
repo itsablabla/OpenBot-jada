@@ -335,6 +335,16 @@ services:
       # stream-json (default) spawns one droid per run; acp keeps one alive and speaks the Agent
       # Client Protocol. Same AG-UI endpoint either way; see agent-droid/src/main.py.
       DROID_TRANSPORT: ${DROID_TRANSPORT:-}
+      # Set, the harness registers this container as its own Droid Computer under that name and
+      # keeps `droid daemon --remote-access` running beside the server, so Factory's app, CLI and
+      # Slack reach the same persistent ~/.factory and /workspace. Needs FACTORY_API_KEY.
+      DROID_COMPUTER_NAME: ${DROID_COMPUTER_NAME:-}
+      # A custom OpenAI-compatible endpoint for Droid to run models from, winning over both the
+      # Factory key and the provider BYOK path. DROID_MODEL names what it serves (falls back to
+      # BOT_MODEL); DROID_MODEL_API_KEY only if the endpoint wants one — Ollama and vLLM do not.
+      DROID_BASE_URL: ${DROID_BASE_URL:-}
+      DROID_MODEL: ${DROID_MODEL:-}
+      DROID_MODEL_API_KEY: ${DROID_MODEL_API_KEY:-}
       CLAUDE_CODE_OAUTH_TOKEN: ${CLAUDE_CODE_OAUTH_TOKEN:-}
       # A path into the mount below, set only when a ChatGPT plan was signed in to. The file is
       # there either way; this variable is what tells the harness to read it.

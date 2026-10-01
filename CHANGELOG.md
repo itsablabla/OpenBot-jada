@@ -34,6 +34,18 @@ off after an update. And `DROID_TRANSPORT=acp` opts into Droid's Agent Client Pr
 persistent JSON-RPC process instead of one `droid exec` per run — with the same AG-UI surface
 outside.
 
+### The Droid harness can be its own Droid Computer, running any endpoint's models
+
+Set `DROID_COMPUTER_NAME` and the harness registers its container with Factory as a
+[Droid Computer](https://docs.factory.ai/droid-computers/overview) under that name and keeps
+`droid daemon --remote-access` running beside the AG-UI server — Factory's app, CLI and Slack then
+reach the same persistent `~/.factory` and `/workspace` the Bot works in, which is what those
+volumes already preserve across restarts. Opt-in, and only on a Factory key, because a Droid
+Computer is a Factory account feature. And Droid can now run models from any OpenAI-compatible
+endpoint by hand: `DROID_BASE_URL` plus `DROID_MODEL` (and `DROID_MODEL_API_KEY` only if the
+endpoint wants one — Ollama and vLLM do not) register a custom model and win over both the Factory
+key and the provider BYOK path, since an operator who typed an address meant that address.
+
 ### A coworker can be pinned to the top of the Agents screen
 
 A coworker's Manage tab has a **Pin** switch beside Hide, and pinned coworkers move into a

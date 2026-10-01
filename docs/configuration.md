@@ -61,6 +61,10 @@ at `agent-langgraph` on a laptop.
 | `DROID_AUTONOMY`     | `low`                              | How far Droid's own local tools may go in its workspace (`low`, `medium`, `high`). `low` keeps it to reads. |
 | `DROID_WORKSPACE`    | `/workspace`                       | Where Droid works inside the harness container; compose mounts the shared `agent-workspace` volume there. An `AGENTS.md` kept in the workspace is picked up by Droid natively. Ignored when the directory does not exist. |
 | `DROID_TRANSPORT`    | unset (stream-json)                | Set `acp` to run Droid as one persistent Agent Client Protocol process instead of one `droid exec` per run. |
+| `DROID_COMPUTER_NAME` | unset                             | Set, the harness registers its container as its own [Droid Computer](https://docs.factory.ai/droid-computers/overview) under that name and keeps `droid daemon --remote-access` running beside the AG-UI server, so Factory's app, CLI and Slack reach the same persistent `~/.factory` and `/workspace`. Needs `FACTORY_API_KEY`. |
+| `DROID_BASE_URL`     | unset                              | A custom OpenAI-compatible endpoint for Droid to run models from — Ollama, vLLM, or your own. Wins over both `FACTORY_API_KEY` and the provider BYOK path. |
+| `DROID_MODEL`        | unset (falls back to `BOT_MODEL`)  | The model that custom endpoint serves. Required with `DROID_BASE_URL`; the harness refuses to start without one. |
+| `DROID_MODEL_API_KEY` | unset (placeholder sent)          | The custom endpoint's key, only if it wants one. |
 | `AGENT_STALL_TIMEOUT_MS` | unset (off)                    | How long a Bot's stream may produce nothing before the turn is ended for it. |
 | `AGENT_TOOL_TOKEN`   | unset; `start.sh` generates one    | The secret a framework Bot presents when it calls a granted tool back through this server. |
 | `APP_DIST_DIR`       | unset                              | Where the built app is, when this process serves it. Set inside the container image; unset in development, where Vite serves the app. |
