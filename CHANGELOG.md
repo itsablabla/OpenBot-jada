@@ -8,6 +8,44 @@ Newest first. `Unreleased` is what is on `main` and not yet tagged.
 
 ## Unreleased
 
+### Factory's Droid is the default runtime
+
+Desktop setup's Bot step now defaults to **Factory Droid**, a new harness (`agent-droid`, port
+4214) that wraps Factory's headless `droid exec --output-format stream-json` behind the same AG-UI
+endpoint every other harness serves. The model screen works unchanged: the key it collects is
+written into Droid's own BYOK ("bring your own key") configuration inside the container, and an
+operator who wants Factory's own models sets `FACTORY_API_KEY` in `.env` instead — the compose
+`agent-harness` service passes it through. Existing installations keep the harness they picked;
+only fresh setups see the new default. LangGraph and every other row remain in the picker.
+
+### Droid is native, not merely wrapped
+
+The model screen has a **Factory** row: paste a Factory API key and setup writes `FACTORY_API_KEY`,
+and — like a Claude or ChatGPT plan — the credential picks the one Bot that can spend it, so the
+harness step re-points to Droid and says so on screen. The harness itself grew four things it did
+not have. Droid now works in the deployment's shared `agent-workspace` volume (mounted at
+`/workspace`, with `DROID_AUTONOMY` choosing how far its own tools may go there, default `low`), so
+its file tools and a workspace `AGENTS.md` behave the way Factory documents. The deployment's own
+tools reach Droid natively over MCP: the harness registers a bridge in `~/.factory/mcp.json` that
+forwards `tools/call` to the server's signed agent-tools callback, the same contract the LangGraph
+Bot uses. Conversations survive restarts: Droid's session state (`/root/.factory`, a new
+`harness-state` volume) and the thread→session map both persist, so a thread picks up where it left
+off after an update. And `DROID_TRANSPORT=acp` opts into Droid's Agent Client Protocol — one
+persistent JSON-RPC process instead of one `droid exec` per run — with the same AG-UI surface
+outside.
+
+### The Droid harness can be its own Droid Computer, running any endpoint's models
+
+Set `DROID_COMPUTER_NAME` and the harness registers its container with Factory as a
+[Droid Computer](https://docs.factory.ai/droid-computers/overview) under that name and keeps
+`droid daemon --remote-access` running beside the AG-UI server — Factory's app, CLI and Slack then
+reach the same persistent `~/.factory` and `/workspace` the Bot works in, which is what those
+volumes already preserve across restarts. Opt-in, and only on a Factory key, because a Droid
+Computer is a Factory account feature. And Droid can now run models from any OpenAI-compatible
+endpoint by hand: `DROID_BASE_URL` plus `DROID_MODEL` (and `DROID_MODEL_API_KEY` only if the
+endpoint wants one — Ollama and vLLM do not) register a custom model and win over both the Factory
+key and the provider BYOK path, since an operator who typed an address meant that address.
+
 ### A coworker can be pinned to the top of the Agents screen
 
 A coworker's Manage tab has a **Pin** switch beside Hide, and pinned coworkers move into a

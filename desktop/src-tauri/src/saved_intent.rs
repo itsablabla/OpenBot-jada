@@ -16,6 +16,7 @@ pub enum Category {
     Intelligence,
     OpenAiApiKey,
     AnthropicApiKey,
+    FactoryApiKey,
     ClaudePlan,
     ChatGptPlan,
     CompatibleEndpointApiKey,
@@ -29,6 +30,7 @@ pub enum Category {
 pub enum ModelIntent {
     OpenAiApiKey,
     AnthropicApiKey,
+    FactoryApiKey,
     ClaudePlan,
     ChatGptPlan,
     CompatibleEndpoint,
@@ -80,6 +82,7 @@ impl SavedIntent {
             ("INTELLIGENCE_API_KEY", Category::Intelligence),
             ("OPENAI_API_KEY", Category::OpenAiApiKey),
             ("ANTHROPIC_API_KEY", Category::AnthropicApiKey),
+            ("FACTORY_API_KEY", Category::FactoryApiKey),
             ("CLAUDE_CODE_OAUTH_TOKEN", Category::ClaudePlan),
         ] {
             if let Some(value) = secrets.get(key) {
@@ -119,6 +122,7 @@ impl SavedIntent {
             ModelCredential::None => unreachable!("no model selection was handled above"),
             ModelCredential::OpenAi { .. } => ModelIntent::OpenAiApiKey,
             ModelCredential::Anthropic { .. } => ModelIntent::AnthropicApiKey,
+            ModelCredential::Factory { .. } => ModelIntent::FactoryApiKey,
             ModelCredential::ClaudePlan { .. } => ModelIntent::ClaudePlan,
             ModelCredential::ChatGptPlan { store } => {
                 if !store.trim().is_empty() {

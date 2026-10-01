@@ -290,6 +290,13 @@ jobs:
           . .venv-claude-sdk/bin/activate
           python -m pip install --requirement agent-claude-sdk/requirements.txt --requirement agent-claude-sdk/requirements-test.txt
           python -m pytest agent-claude-sdk/tests -q
+      - name: Droid stream-json translation regressions
+        run: |
+          set -euo pipefail
+          python -m venv .venv-droid
+          . .venv-droid/bin/activate
+          python -m pip install --requirement agent-droid/requirements.txt --requirement agent-droid/requirements-test.txt
+          python -m pytest agent-droid/tests -q
       - name: LangGraph AG-UI provider-boundary regressions
         run: |
           set -euo pipefail

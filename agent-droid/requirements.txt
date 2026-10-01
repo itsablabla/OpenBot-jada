@@ -1,0 +1,4 @@
+ag-ui-protocol==0.1.22
+fastapi
+python-multipart
+uvicorn[standard]

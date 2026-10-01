@@ -33,6 +33,7 @@ pub fn is_secret(key: &str) -> bool {
         "INTELLIGENCE_API_KEY"
             | "OPENAI_API_KEY"
             | "ANTHROPIC_API_KEY"
+            | "FACTORY_API_KEY"
             | "CLAUDE_CODE_OAUTH_TOKEN"
             // Retired, and still swept up: a machine that ran an older version has one of these.
             | "CHATGPT_OAUTH_TOKEN"

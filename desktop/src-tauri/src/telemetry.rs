@@ -695,6 +695,7 @@ pub enum Step {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Harness {
+    Droid,
     Crewai,
     Llamaindex,
     Agno,
@@ -715,6 +716,7 @@ pub enum Harness {
 pub enum Provider {
     Openai,
     Anthropic,
+    Factory,
     Compatible,
     None,
 }
@@ -800,8 +802,8 @@ pub fn schema_json() -> serde_json::Value {
         },
         "events": {
             "step_viewed": { "step": ["welcome", "harness", "install", "model", "connect", "ask"] },
-            "harness_chosen": { "harness": ["crewai", "llamaindex", "agno", "langgraph", "google_adk", "pydantic_ai", "microsoft_agent_framework", "claude_agent_sdk", "strands", "ag2", "langroid", "mastra", "byo_url"] },
-            "model_chosen": { "provider": ["openai", "anthropic", "compatible", "none"], "credential_path": ["subscription", "api_key", "none"], "custom_base_url": "bool" },
+            "harness_chosen": { "harness": ["droid", "crewai", "llamaindex", "agno", "langgraph", "google_adk", "pydantic_ai", "microsoft_agent_framework", "claude_agent_sdk", "strands", "ag2", "langroid", "mastra", "byo_url"] },
+            "model_chosen": { "provider": ["openai", "anthropic", "factory", "compatible", "none"], "credential_path": ["subscription", "api_key", "none"], "custom_base_url": "bool" },
             "engine_detected": { "engine": ["docker", "podman", "none"], "responding": "bool" },
             "engine_installed": { "engine": ["docker", "podman", "none"], "outcome": ["success", "failure"] },
             "windows_stage": { "outcome": ["ready", "wsl_absent", "wsl_one", "wsl_no_kernel", "virtual_machine_platform_disabled", "virtualization_disabled", "not_administrator", "check_failed"] },

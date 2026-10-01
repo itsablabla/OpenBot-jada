@@ -214,6 +214,7 @@ struct Progress {
 struct SavedModelApiKeys {
     openai: Option<bool>,
     anthropic: Option<bool>,
+    factory: Option<bool>,
     compatible: Option<bool>,
 }
 
@@ -893,6 +894,17 @@ impl ChosenModel {
                 }
                 Ok(openbot_env::ModelCredential::Anthropic { api_key })
             }
+            ("factory", "api-key") => {
+                let api_key = if saved {
+                    saved_secret(root, "FACTORY_API_KEY")?
+                } else {
+                    given(self.api_key)
+                };
+                if saved && api_key.is_empty() {
+                    return Err("That saved Factory API key is no longer available.".into());
+                }
+                Ok(openbot_env::ModelCredential::Factory { api_key })
+            }
             ("anthropic", "plan") => {
                 let token = if saved {
                     saved_secret(root, "CLAUDE_CODE_OAUTH_TOKEN")?
@@ -1353,6 +1365,12 @@ async fn start_stack_inner<R: tauri::Runtime>(
                     agent_url: None,
                 }),
             openbot_env::ModelCredential::ChatGptPlan { .. } => harness::speaking_for("openai")
+                .map(|id| harness::HarnessChoice {
+                    id: id.into(),
+                    agent_url: None,
+                }),
+            // Same rule for a Factory key: only the Droid harness reads it.
+            openbot_env::ModelCredential::Factory { .. } => harness::speaking_for("factory")
                 .map(|id| harness::HarnessChoice {
                     id: id.into(),
                     agent_url: None,
@@ -2863,6 +2881,7 @@ fn already_configured_for_root(root: String) -> AlreadyConfigured {
              */
             "OPENAI_API_KEY",
             "ANTHROPIC_API_KEY",
+            "FACTORY_API_KEY",
             "OPENAI_BASE_URL",
             "OPENAI_CONTAINER_BASE_URL",
             "BOT_MODEL",
@@ -2893,6 +2912,10 @@ fn already_configured_for_root(root: String) -> AlreadyConfigured {
                 anthropic: hint(
                     Category::AnthropicApiKey,
                     values.contains_key("ANTHROPIC_API_KEY"),
+                ),
+                factory: hint(
+                    Category::FactoryApiKey,
+                    values.contains_key("FACTORY_API_KEY"),
                 ),
                 compatible: values
                     .get("OPENAI_BASE_URL")

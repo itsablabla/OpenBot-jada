@@ -389,6 +389,7 @@ pub fn compose(
             "OPENAI_BASE_URL",
             "OPENAI_CONTAINER_BASE_URL",
             "ANTHROPIC_API_KEY",
+            "FACTORY_API_KEY",
             "CLAUDE_CODE_OAUTH_TOKEN",
             "CHATGPT_AUTH_FILE",
             "OPENBOT_MODEL_OAUTH_FILE",
@@ -442,6 +443,9 @@ pub fn compose(
             insert_if_given(&mut env, "ANTHROPIC_API_KEY", api_key);
             env.insert("BOT_PROVIDER".into(), "anthropic".into());
             env.insert("BOT_MODEL".into(), "claude-sonnet-4-5".into());
+        }
+        ModelCredential::Factory { api_key } => {
+            insert_if_given(&mut env, "FACTORY_API_KEY", api_key);
         }
         ModelCredential::ClaudePlan { token } => {
             insert_if_given(&mut env, "CLAUDE_CODE_OAUTH_TOKEN", token);
@@ -828,6 +832,9 @@ pub enum ModelCredential {
     OpenAi { api_key: String },
     /// A key typed for Anthropic.
     Anthropic { api_key: String },
+    /// A key typed for Factory. Only the Droid harness reads it, natively; no bundled Bot speaks
+    /// Factory's API, so `BOT_PROVIDER`/`BOT_MODEL` are deliberately not set for it.
+    Factory { api_key: String },
     /// A Claude plan, signed in to. The token is minted by `claude setup-token` and never typed.
     ClaudePlan { token: String },
     /**
@@ -1342,6 +1349,30 @@ HTTPS_PROXY=http://proxy:8080
         assert_eq!(env["INTELLIGENCE_API_KEY"], "key-with-a-trailing-space");
         // Unchanged, and the reason the other three now match it.
         assert_eq!(env["OPENAI_API_KEY"], "sk-model");
+    }
+
+    #[test]
+    fn a_factory_key_is_written_alone_with_no_provider_or_model_pinned() {
+        let env = compose(
+            &intelligence(),
+            &Model {
+                credential: ModelCredential::Factory {
+                    api_key: " fk-1 ".into(),
+                },
+            },
+            &engine_status(None),
+            &Ports::default(),
+            &pinned(),
+            None,
+            &BTreeMap::new(),
+        );
+        assert_eq!(env["FACTORY_API_KEY"], "fk-1");
+        // No bundled Bot speaks Factory's API; the Droid harness reads the key natively, so the
+        // per-bot provider/model contract stays unset and every other credential is cleared.
+        assert_eq!(env["BOT_PROVIDER"], "");
+        assert!(!env.contains_key("BOT_MODEL"));
+        assert_eq!(env["OPENAI_API_KEY"], "");
+        assert_eq!(env["ANTHROPIC_API_KEY"], "");
     }
 
     #[test]
@@ -2624,6 +2655,7 @@ mod model_tests {
             "OPENAI_BASE_URL",
             "OPENAI_CONTAINER_BASE_URL",
             "ANTHROPIC_API_KEY",
+            "FACTORY_API_KEY",
             "CLAUDE_CODE_OAUTH_TOKEN",
             "CHATGPT_AUTH_FILE",
         ] {

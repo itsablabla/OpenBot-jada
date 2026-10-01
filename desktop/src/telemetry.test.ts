@@ -10,6 +10,10 @@ test("harness telemetry admits catalogue enums and excludes URLs and unknown IDs
     kind: "harness_chosen",
     harness: "claude_agent_sdk",
   });
+  expect(harnessChoiceEvent("droid")).toEqual({
+    kind: "harness_chosen",
+    harness: "droid",
+  });
   for (const unknown of [
     "https://private-agent.example",
     "future-harness",
@@ -67,6 +71,23 @@ test("a custom endpoint becomes a boolean without exporting its URL, model, or c
     credential_path: "api_key",
     custom_base_url: true,
   });
+});
+
+test("a factory key is exported as a provider name and nothing else", () => {
+  expect(
+    modelChoiceEvent({
+      provider: "factory",
+      login: "api-key",
+      apiKey: "synthetic-private-key",
+    }),
+  ).toEqual({
+    kind: "model_chosen",
+    provider: "factory",
+    credential_path: "api_key",
+    custom_base_url: false,
+  });
+  // Factory has no plan sign-in; an impossible pair is not exported.
+  expect(modelChoiceEvent({ provider: "factory", login: "plan" })).toBeNull();
 });
 
 test("a skipped model is explicit and unsupported providers are not exported", () => {
